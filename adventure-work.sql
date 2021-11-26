@@ -1,6 +1,109 @@
 USE AdventureWorks2019
 GO
 
+-- T có làm lại vài yêu cầu kèm đề bài
+
+-- 1.Tạo các View
+-- Yêu cầu 1: (view có điều kiện đơn giản trên 1 bảng)
+-- Tính tổng trị giá của những hóa đơn với Mã theo dõi giao hàng(CarrierTrackingNumber) có 3 ký tự đầu là 4BD, thông tin bao gồm: SalesOrderID, CarrierTrackingNumber, SubTotal = SUM(OrderQty * UnitPrice)
+CREATE VIEW v_TotalValueOfInvoicesWithDeliveryTrackingCode
+AS
+  SELECT SalesOrderID, CarrierTrackingNumber, SUM(OrderQty * UnitPrice) AS SubTotal
+  FROM Sales.SalesOrderDetail
+  WHERE CarrierTrackingNumber LIKE '4BD%'
+  GROUP BY SalesOrderID, CarrierTrackingNumber
+GO
+SELECT *
+FROM v_TotalValueOfInvoicesWithDeliveryTrackingCode
+
+
+-- Yêu cầu 3: (gợi ý: view có điều kiện phức tạp/ truy vấn lồng trên 1 bảng)
+-- Liệt kê danh sách các hóa đơn (SalesOrderID) lặp trong từ 01/05/2011 đến 31/10/2011 có tổng tiền > 100000, thông tin gồm SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
+CREATE OR ALTER VIEW v_ListDuplicateInvoices
+AS
+  SELECT SalesOrderID, OrderDate, SubTotal
+  FROM Sales.SalesOrderHeader
+  WHERE (OrderDate BETWEEN '2011-05-01' AND '2011-10-31')
+    AND SubTotal > 100000
+    AND (
+    SELECT COUNT(*)
+    FROM Sales.SalesOrderDetail
+    WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
+  ) > 1
+GO
+SELECT *
+FROM v_ListDuplicateInvoices
+
+
+-- Yêu cầu 4: (gợi ý: view có điều kiện phức tạp/ truy vấn lồng trên 1 bảng)
+-- Đếm tổng số khách hàng và tổng tiền của những khách hàng thuộc các quốc gia có mã vùng là US (lấy thông tin từ các bảng SalesTerritory, Sales.Customer, Sales.SalesOrderHeader, Sales.SalesOrderDetail). Thông tin bao gồm: tổng số khách hàng (countofCus), tổng tiền (Subtotal) với Subtotal = SUM(OrderQty * UnitPrice).
+CREATE VIEW v_CountCustomer
+AS
+  SELECT COUNT(CustomerID) AS countofCus, SUM(SubTotal) AS TotalAmount
+  FROM (
+    SELECT CustomerID, SubTotal
+    FROM Sales.SalesOrderHeader
+    WHERE (
+      SELECT COUNT(*)
+    FROM Sales.SalesOrderDetail
+    WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
+    ) > 1
+  ) AS t
+GO
+SELECT *
+FROM v_CountCustomer
+
+
+-- 3.Xây dựng các Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- SELECT [Status]
 -- FROM Sales.SalesOrderHeader
 -- select * from sales.salesorderdetail
@@ -32,7 +135,7 @@ SELECT *
 FROM v_BusinessEntity
 
 -- create view with complex conditions/nested queries across multiple tables
-drop view v_4
+DROP VIEW v_4
 GO
 CREATE VIEW v_4
 AS
@@ -47,7 +150,6 @@ AS
 GO
 SELECT *
 FROM v_4
-
 
 -- 5
 UPDATE v_4
@@ -96,8 +198,6 @@ WHERE
 GO
 EXEC sp_get_sales_person_id_input_2_table @BusinessEntityID = 282, @SalesOrderID = 1
 
-
-
 -- hàm trả về kiểu vô hướng [1]
 CREATE OR ALTER FUNCTION fn_get_sales_person_bonus(@ID INT)
 RETURNS INT
@@ -109,8 +209,6 @@ BEGIN
 END
 GO
 PRINT dbo.fn_get_sales_person_bonus(283)
-
-Sales.SalesPerson
 
 -- hàm trả về kiểu vô hướng [2]
 CREATE OR ALTER FUNCTION fn_get_sales_customer_account_number(@ID INT)
@@ -124,6 +222,18 @@ END
 GO
 PRINT dbo.fn_get_sales_customer_account_number(3)
 
+-- write code create function return table with table sales.salesorderdetail
+CREATE OR ALTER FUNCTION fn_get_sales_order_detail(@ID INT)
+RETURNS TABLE
+AS
+BEGIN
+  RETURN (SELECT *
+  FROM Sales.SalesOrderDetail
+  WHERE SalesOrderID = @ID)
+END
+GO
+SELECT *
+FROM fn_get_sales_order_detail(1)
 
 
 
