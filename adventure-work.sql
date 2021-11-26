@@ -19,7 +19,7 @@ FROM v_TotalValueOfInvoicesWithDeliveryTrackingCode
 
 -- Yêu cầu 3: (gợi ý: view có điều kiện phức tạp/ truy vấn lồng trên 1 bảng)
 -- Liệt kê danh sách các hóa đơn (SalesOrderID) lặp trong từ 01/05/2011 đến 31/10/2011 có tổng tiền > 100000, thông tin gồm SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
-CREATE OR ALTER VIEW v_ListDuplicateInvoices
+CREATE VIEW v_ListDuplicateInvoices
 AS
   SELECT SalesOrderID, OrderDate, SubTotal
   FROM Sales.SalesOrderHeader
@@ -55,6 +55,66 @@ FROM v_CountCustomer
 
 
 -- 3.Xây dựng các Function
+-- hàm trả về bảng [1]
+-- Viết hàm sumofOrder với hai tham số @Month và @Year trả về danh sách các hóa đơn (SalesOrderID) lặp trong tháng và năm được truyền vào từ 2 tham số @Month và @Year, có tổng tiền > 100000, thông tin gồm: SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
+CREATE FUNCTION sumofOrder(@Month INT, @Year INT)
+RETURNS TABLE
+AS
+RETURN (
+  SELECT SOH.SalesOrderID, OrderDate, SUM(OrderQty * UnitPrice) AS SubTotal
+FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
+WHERE SOH.SalesOrderID = SOD.SalesOrderID AND MONTH(OrderDate) = @Month AND YEAR(OrderDate) = @Year AND SubTotal > 100000
+GROUP BY SOH.SalesOrderID, OrderDate
+)
+GO
+SELECT *
+FROM sumofOrder(10, 2011)
+
+
+-- hàm trả về bảng [2]
+-- Viết hàm TotalOfEmp với tham số @MonthOrder, @YearOrder để tính tổng doanh thu của các nhân viên bán hàng (SalePerson) trong tháng và năm được truyền và 2 tham số, thông tin gồm [SalesPersonID], Total, với Total = SUM(SubTotal)
+CREATE FUNCTION TotalOfEmp(@MonthOrder INT, @YearOrder INT)
+RETURNS TABLE
+AS
+RETURN (
+  SELECT SOH.SalesPersonID, SUM(SOD.OrderQty * SOD.UnitPrice) AS Total
+FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
+WHERE SOH.SalesOrderID = SOD.SalesOrderID
+  AND MONTH(OrderDate) = @MonthOrder
+  AND YEAR(OrderDate) = @YearOrder
+  AND SOH.SalesPersonID IS NOT NULL
+GROUP BY SOH.SalesPersonID
+)
+GO
+SELECT *
+FROM TotalOfEmp(7, 2011)
+
+
+-- 4.Xây dựng các Trigger và Transaction
+-- Create a bonus update trigger (Bonus) for SalesPerson sales staff, when
+-- the user inserts a new record on the SalesOrderHeader table, as specified
+-- as follows: If the employee's total sales have a new invoice, enter the table
+-- SalesOrderHeader with value >10000000, increase bonus to 10% of level
+-- ERROR
+-- CREATE TRIGGER t_Bonus
+-- ON Sales.SalesOrderHeader
+-- FOR UPDATE
+-- AS
+-- BEGIN
+--   UPDATE Sales.SalesPerson
+--   SET Bonus = Bonus + 0.1 * Bonus
+--   FROM Sales.SalesOrderHeader SOH
+--   WHERE Sales.SalesPerson.SalesPersonID = SOH.SalesPersonID
+--     AND SOH.SubTotal > 10000000
+-- END
+-- GO
+
+-- select * from Sales.SalesPerson, Sales.SalesOrderHeader
+-- where Sales.SalesPerson.SalesPersonID = Sales.SalesOrderHeader.SalesPersonID
+--   and Sales.SalesOrderHeader.SubTotal > 10000000
+
+
+
 
 
 
