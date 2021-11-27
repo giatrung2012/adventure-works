@@ -45,8 +45,8 @@ AS
     FROM Sales.SalesOrderHeader
     WHERE (
       SELECT COUNT(*)
-    FROM Sales.SalesOrderDetail
-    WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
+      FROM Sales.SalesOrderDetail
+      WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
     ) > 1
   ) AS t
 GO
@@ -62,9 +62,9 @@ RETURNS TABLE
 AS
 RETURN (
   SELECT SOH.SalesOrderID, OrderDate, SUM(OrderQty * UnitPrice) AS SubTotal
-FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
-WHERE SOH.SalesOrderID = SOD.SalesOrderID AND MONTH(OrderDate) = @Month AND YEAR(OrderDate) = @Year AND SubTotal > 100000
-GROUP BY SOH.SalesOrderID, OrderDate
+  FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
+  WHERE SOH.SalesOrderID = SOD.SalesOrderID AND MONTH(OrderDate) = @Month AND YEAR(OrderDate) = @Year AND SubTotal > 100000 
+  GROUP BY SOH.SalesOrderID, OrderDate
 )
 GO
 SELECT *
@@ -77,13 +77,13 @@ CREATE FUNCTION TotalOfEmp(@MonthOrder INT, @YearOrder INT)
 RETURNS TABLE
 AS
 RETURN (
-  SELECT SOH.SalesPersonID, SUM(SOD.OrderQty * SOD.UnitPrice) AS Total
-FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
-WHERE SOH.SalesOrderID = SOD.SalesOrderID
-  AND MONTH(OrderDate) = @MonthOrder
-  AND YEAR(OrderDate) = @YearOrder
-  AND SOH.SalesPersonID IS NOT NULL
-GROUP BY SOH.SalesPersonID
+  SELECT SOH.SalesPersonID, SUM(SOD.OrderQty * SOD.UnitPrice) AS Total 
+  FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD 
+  WHERE SOH.SalesOrderID = SOD.SalesOrderID 
+    AND MONTH(OrderDate) = @MonthOrder
+    AND YEAR(OrderDate) = @YearOrder
+    AND SOH.SalesPersonID IS NOT NULL
+  GROUP BY SOH.SalesPersonID
 )
 GO
 SELECT *
@@ -183,43 +183,6 @@ GO
 CREATE USER td FOR LOGIN TranDan
 GO
 GRANT SELECT ON Sales.SalesPerson TO td
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
