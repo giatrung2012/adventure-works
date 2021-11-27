@@ -91,39 +91,98 @@ FROM TotalOfEmp(7, 2011)
 
 
 -- 4.Xây dựng các Trigger và Transaction
--- Create a bonus update trigger (Bonus) for SalesPerson sales staff, when
--- the user inserts a new record on the SalesOrderHeader table, as specified
--- as follows: If the employee's total sales have a new invoice, enter the table
--- SalesOrderHeader with value >10000000, increase bonus to 10% of level
--- ERROR
--- CREATE TRIGGER t_Bonus
--- ON Sales.SalesOrderHeader
--- FOR UPDATE
--- AS
--- BEGIN
---   UPDATE Sales.SalesPerson
---   SET Bonus = Bonus + 0.1 * Bonus
---   FROM Sales.SalesOrderHeader SOH
---   WHERE Sales.SalesPerson.SalesPersonID = SOH.SalesPersonID
---     AND SOH.SubTotal > 10000000
--- END
--- GO
-
--- select * from Sales.SalesPerson, Sales.SalesOrderHeader
--- where Sales.SalesPerson.SalesPersonID = Sales.SalesOrderHeader.SalesPersonID
---   and Sales.SalesOrderHeader.SubTotal > 10000000
+-- 1 Trigger Insert, …
+-- Tạo trigger cập nhật tiền thưởng (Bonus) cho nhân viên bán hàng SalesPerson, khi người dùng chèn thêm một record mới trên bảng SalesOrderHeader, theo quy định như sau: Nếu tổng tiền bán được của nhân viên có hóa đơn mới nhập vào bảng SalesOrderHeader có giá trị > 10000000 thì tăng tiền thưởng lên 10% của mức thưởng hiện tại.
+CREATE TRIGGER t_Bonus
+ON Sales.SalesOrderHeader
+FOR INSERT
+AS
+BEGIN
+  DECLARE @ID INT = (SELECT SalesPersonID
+  FROM inserted)
+  DECLARE @Total MONEY = (SELECT SubTotal
+  FROM inserted)
+  IF @Total > 10000000
+  BEGIN
+    UPDATE Sales.SalesPerson
+    SET Bonus = Bonus + @Total * 0.1
+    WHERE BusinessEntityID = @ID
+  END
+END
 
 
+-- 1 Trigger Delete, …
+-- Viết trigger dùng để xóa hóa đơn trong bảng Sales.SalesOrderHeader, đồng thời xóa các bản ghi của hóa đơn đó trong Sales.SalesOrderDetail. Nếu không tồn tại hóa đơn trong Sales.SalesOrderHeader, thì không được phép xóa hóa đơn đó trong Sales.SalesOrderDetail và in thông báo lỗi.
+CREATE TRIGGER t_DeleteInvoice
+ON Sales.SalesOrderHeader
+FOR DELETE
+AS
+BEGIN
+  DECLARE @ID INT = (SELECT SalesOrderID
+  FROM deleted)
+  IF NOT EXISTS (SELECT *
+  FROM Sales.SalesOrderDetail
+  WHERE SalesOrderID = @ID)
+  BEGIN
+    PRINT 'Invoice does not exist'
+    ROLLBACK TRANSACTION
+  END
+  ELSE
+  BEGIN
+    DELETE FROM Sales.SalesOrderDetail
+    WHERE SalesOrderID = @ID
+  END
+END
+
+-- 2 Transaction (COMMIT và ROLL BACK)
+-- Transaction DeleteSomethings dùng để xóa liên tục nhiều bản ghi trên nhiều bảng khác nhau. Nếu có câu lệnh trong Transaction thất bại thì in ra lỗi sau đó ROLLBACK, ngược lại thì COMMIT.
+BEGIN TRANSACTION DeleteSomethings
+BEGIN TRY
+	DELETE FROM Sales.Store WHERE Name = 'South Bike Company'
+	DELETE FROM Sales.SalesPerson WHERE BusinessEntityID = 1
+	DELETE FROM Sales.SalesTerritory WHERE Name = 'North'
+  PRINT 'Success'
+	COMMIT
+END TRY
+BEGIN CATCH
+	PRINT N'Can not delete'
+	ROLLBACK
+END CATCH
 
 
+-- Transaction InsertSomethings dùng để thêm liên tục nhiều bản ghi trên nhiều bảng khác nhau. Nếu có câu lệnh trong Transaction thất bại thì in ra lỗi sau đó ROLLBACK, ngược lại thì COMMIT.
+BEGIN TRANSACTION InsertSomethings
+BEGIN TRY
+	INSERT INTO Sales.SalesTerritory
+  (Name, rowguid, ModifiedDate)
+VALUES('South', NEWID(), GETDATE())
+	INSERT INTO Sales.SalesPerson
+  (BusinessEntityID, SalesQuota, Bonus, CommissionPct, SalesYTD, SalesLastYear, rowguid, ModifiedDate)
+VALUES(3, 1000, 0, 0.1, 1000, 1000, NEWID(), GETDATE())
+  PRINT 'Success'
+	COMMIT
+END TRY
+BEGIN CATCH
+	PRINT N'Can not insert'
+  ROLLBACK
+END CATCH
 
 
+-- 5.Tạo các user
+-- Tạo User HuanHoaHong cho bảng Sales.SalePerson hhh có quyền Thêm, chỉnh sửa dữ liệu
+CREATE LOGIN HuanHoaHong WITH PASSWORD = 'Col@mth1mo1coan'
+GO
+CREATE USER hhh FOR LOGIN HoanHoaHong
+GO
+GRANT SELECT, UPDATE, INSERT, DELETE ON Sales.SalesPerson TO hhh
 
 
-
-
-
-
+-- Tạo User TranDan cho bảng Sales.Store td có quyền xem dữ liệu
+CREATE LOGIN TranDan WITH PASSWORD = 'Cov@nto1c@o'
+GO
+CREATE USER td FOR LOGIN TranDan
+GO
+GRANT SELECT ON Sales.SalesPerson TO td
 
 
 
@@ -173,128 +232,6 @@ FROM TotalOfEmp(7, 2011)
 -- select * from sales.store
 -- select * from sales.personquotahistory
 -- select * from sales.salesperson
-
--- View don gian (1 bang)
-CREATE VIEW v_SalesOrderHeader
-AS
-  SELECT *
-  FROM Sales.SalesOrderHeader
-  WHERE SubTotal > 3500
-GO
-SELECT *
-FROM v_SalesOrderHeader
-
-CREATE OR ALTER VIEW v_BusinessEntity
-AS
-  SELECT SP.BusinessEntityID, SUM(OrderQty) AS TotalOrderQty
-  FROM Sales.SalesPerson SP, Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
-  WHERE SP.BusinessEntityID = SOH.SalesPersonID AND SOH.SalesOrderID = SOD.SalesOrderID
-  GROUP BY SP.BusinessEntityID
-GO
-SELECT *
-FROM v_BusinessEntity
-
--- create view with complex conditions/nested queries across multiple tables
-DROP VIEW v_4
-GO
-CREATE VIEW v_4
-AS
-  SELECT *
-  FROM Sales.SalesOrderHeader
-  WHERE SubTotal > 3500
-    AND (
-    SELECT COUNT(*)
-    FROM Sales.SalesOrderDetail
-    WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
-  ) > 70
-GO
-SELECT *
-FROM v_4
-
--- 5
-UPDATE v_4
-SET SubTotal = SubTotal + 100
-GO
-SELECT *
-FROM v_4
-
--- 1 thủ tục không tham số
-CREATE PROCEDURE sp_get_sales_person_id
-AS
-SELECT BusinessEntityID
-FROM Sales.SalesPerson
-WHERE BusinessEntityID > 280
-GO
-EXEC sp_get_sales_person_id
-
--- 1 thủ tục có tham số mặc định
-CREATE PROCEDURE sp_get_sales_person_id_default
-  @BusinessEntityID INT = 280
-AS
-SELECT BusinessEntityID
-FROM Sales.SalesPerson
-WHERE BusinessEntityID = @BusinessEntityID
-GO
-EXEC sp_get_sales_person_id_default
-
--- thủ tục có tham số input [1]
-CREATE PROCEDURE sp_get_sales_person_id_input
-  @BusinessEntityID INT
-AS
-SELECT *
-FROM Sales.SalesPerson
-WHERE BusinessEntityID = @BusinessEntityID
-GO
-EXEC sp_get_sales_person_id_input @BusinessEntityID = 282
-
--- write code create proc with input in 2 table and have 2 parameters
-CREATE PROC sp_get_sales_person_id_input_2_table
-  @BusinessEntityID INT,
-  @SalesOrderID INT
-AS
-SELECT *
-FROM Sales.SalesPerson
-WHERE 
-GO
-EXEC sp_get_sales_person_id_input_2_table @BusinessEntityID = 282, @SalesOrderID = 1
-
--- hàm trả về kiểu vô hướng [1]
-CREATE OR ALTER FUNCTION fn_get_sales_person_bonus(@ID INT)
-RETURNS INT
-AS
-BEGIN
-  RETURN (SELECT Bonus
-  FROM Sales.SalesPerson
-  WHERE BusinessEntityID = @ID)
-END
-GO
-PRINT dbo.fn_get_sales_person_bonus(283)
-
--- hàm trả về kiểu vô hướng [2]
-CREATE OR ALTER FUNCTION fn_get_sales_customer_account_number(@ID INT)
-RETURNS VARCHAR(10)
-AS
-BEGIN
-  RETURN (SELECT AccountNumber
-  FROM Sales.Customer
-  WHERE CustomerID = @ID)
-END
-GO
-PRINT dbo.fn_get_sales_customer_account_number(3)
-
--- write code create function return table with table sales.salesorderdetail
-CREATE OR ALTER FUNCTION fn_get_sales_order_detail(@ID INT)
-RETURNS TABLE
-AS
-BEGIN
-  RETURN (SELECT *
-  FROM Sales.SalesOrderDetail
-  WHERE SalesOrderID = @ID)
-END
-GO
-SELECT *
-FROM fn_get_sales_order_detail(1)
-
 
 
 
