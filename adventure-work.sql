@@ -17,6 +17,20 @@ SELECT *
 FROM v_TotalValueOfInvoicesWithDeliveryTrackingCode
 
 
+-- Yêu cầu 2: (gợi ý: view có điều kiện đơn giản trên nhiều bảng)
+-- Tạo View hiển thị top 5 tổng doanh số cao nhất từ cột TotalDue mỗi năm và mỗi tháng cho từng khách hàng.
+CREATE VIEW v_CustomerTotals 
+AS
+  SELECT TOP 5 C.CustomerID, YEAR(OrderDate) AS OrderYear, MONTH(OrderDate) AS OrderMonth, SUM(TotalDue) AS TotalSales
+  FROM Sales.Customer C, Sales.SalesOrderHeader SOH
+  WHERE C.CustomerID = SOH.CustomerID
+  GROUP BY C.CustomerID, YEAR(OrderDate), MONTH(OrderDate)
+  ORDER BY TotalSales DESC
+GO
+SELECT CustomerID, OrderYear, OrderMonth, TotalSales
+FROM v_CustomerTotals
+
+
 -- Yêu cầu 3: (gợi ý: view có điều kiện phức tạp/ truy vấn lồng trên 1 bảng)
 -- Liệt kê danh sách các hóa đơn (SalesOrderID) lặp trong từ 01/05/2011 đến 31/10/2011 có tổng tiền > 100000, thông tin gồm SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
 CREATE VIEW v_ListDuplicateInvoices
@@ -26,10 +40,10 @@ AS
   WHERE (OrderDate BETWEEN '2011-05-01' AND '2011-10-31')
     AND SubTotal > 100000
     AND (
-    SELECT COUNT(*)
-    FROM Sales.SalesOrderDetail
-    WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
-  ) > 1
+      SELECT COUNT(*)
+      FROM Sales.SalesOrderDetail
+      WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
+    ) > 1
 GO
 SELECT *
 FROM v_ListDuplicateInvoices
@@ -63,7 +77,9 @@ AS
 RETURN (
   SELECT SOH.SalesOrderID, OrderDate, SUM(OrderQty * UnitPrice) AS SubTotal
   FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
-  WHERE SOH.SalesOrderID = SOD.SalesOrderID AND MONTH(OrderDate) = @Month AND YEAR(OrderDate) = @Year AND SubTotal > 100000 
+  WHERE SOH.SalesOrderID = SOD.SalesOrderID 
+    AND MONTH(OrderDate) = @Month 
+    AND YEAR(OrderDate) = @Year AND SubTotal > 100000 
   GROUP BY SOH.SalesOrderID, OrderDate
 )
 GO
@@ -93,15 +109,13 @@ FROM TotalOfEmp(7, 2011)
 -- 4.Xây dựng các Trigger và Transaction
 -- 1 Trigger Insert, …
 -- Tạo trigger cập nhật tiền thưởng (Bonus) cho nhân viên bán hàng SalesPerson, khi người dùng chèn thêm một record mới trên bảng SalesOrderHeader, theo quy định như sau: Nếu tổng tiền bán được của nhân viên có hóa đơn mới nhập vào bảng SalesOrderHeader có giá trị > 10000000 thì tăng tiền thưởng lên 10% của mức thưởng hiện tại.
-CREATE TRIGGER t_Bonus
+CREATE TRIGGER t_Bonus_Insert
 ON Sales.SalesOrderHeader
 FOR INSERT
 AS
 BEGIN
-  DECLARE @ID INT = (SELECT SalesPersonID
-  FROM inserted)
-  DECLARE @Total MONEY = (SELECT SubTotal
-  FROM inserted)
+  DECLARE @ID INT = (SELECT SalesPersonID FROM inserted)
+  DECLARE @Total MONEY = (SELECT SubTotal FROM inserted)
   IF @Total > 10000000
   BEGIN
     UPDATE Sales.SalesPerson
@@ -111,21 +125,43 @@ BEGIN
 END
 
 
+-- 1 Trigger Update, …
+-- Tạo trigger khi cập nhật bảng Sales.SalesTerritory thì cập nhật lại bảng Sales.SalesTerritoryHistory với TerritoryID mới và StartDate là ngày hiện tại.
+CREATE TRIGGER t_Update_SalesTerritory
+ON Sales.SalesTerritory
+FOR UPDATE
+AS
+BEGIN
+  DECLARE @OldID INT = (SELECT TerritoryID FROM deleted)
+  DECLARE @NewID INT = (SELECT TerritoryID FROM inserted)
+
+  UPDATE Sales.SalesTerritoryHistory
+  SET EndDate = GETDATE()
+  WHERE TerritoryID = @OldID
+  
+  INSERT INTO Sales.SalesTerritoryHistory
+    (StartDate, TerritoryID)
+  VALUES
+    (GETDATE(), @NewID)
+END
+
+
 -- 1 Trigger Delete, …
 -- Viết trigger dùng để xóa hóa đơn trong bảng Sales.SalesOrderHeader, đồng thời xóa các bản ghi của hóa đơn đó trong Sales.SalesOrderDetail. Nếu không tồn tại hóa đơn trong Sales.SalesOrderHeader, thì không được phép xóa hóa đơn đó trong Sales.SalesOrderDetail và in thông báo lỗi.
-CREATE TRIGGER t_DeleteInvoice
+CREATE TRIGGER sales.t_DeleteInvoice
 ON Sales.SalesOrderHeader
 FOR DELETE
 AS
 BEGIN
-  DECLARE @ID INT = (SELECT SalesOrderID
-  FROM deleted)
-  IF NOT EXISTS (SELECT *
-  FROM Sales.SalesOrderDetail
-  WHERE SalesOrderID = @ID)
+  DECLARE @ID INT = (SELECT SalesOrderID FROM deleted)
+  IF NOT EXISTS (
+    SELECT * 
+    FROM Sales.SalesOrderDetail
+    WHERE SalesOrderID = @ID
+  )
   BEGIN
     PRINT 'Invoice does not exist'
-    ROLLBACK TRANSACTION
+    ROLLBACK
   END
   ELSE
   BEGIN
@@ -134,9 +170,10 @@ BEGIN
   END
 END
 
+
 -- 2 Transaction (COMMIT và ROLL BACK)
 -- Transaction DeleteSomethings dùng để xóa liên tục nhiều bản ghi trên nhiều bảng khác nhau. Nếu có câu lệnh trong Transaction thất bại thì in ra lỗi sau đó ROLLBACK, ngược lại thì COMMIT.
-BEGIN TRANSACTION DeleteSomethings
+BEGIN TRAN DeleteSomethings
 BEGIN TRY
 	DELETE FROM Sales.Store WHERE Name = 'South Bike Company'
 	DELETE FROM Sales.SalesPerson WHERE BusinessEntityID = 1
@@ -151,14 +188,16 @@ END CATCH
 
 
 -- Transaction InsertSomethings dùng để thêm liên tục nhiều bản ghi trên nhiều bảng khác nhau. Nếu có câu lệnh trong Transaction thất bại thì in ra lỗi sau đó ROLLBACK, ngược lại thì COMMIT.
-BEGIN TRANSACTION InsertSomethings
+BEGIN TRAN InsertSomethings
 BEGIN TRY
 	INSERT INTO Sales.SalesTerritory
-  (Name, rowguid, ModifiedDate)
-VALUES('South', NEWID(), GETDATE())
+    (Name, rowguid, ModifiedDate)
+  VALUES
+    ('South', NEWID(), GETDATE())
 	INSERT INTO Sales.SalesPerson
-  (BusinessEntityID, SalesQuota, Bonus, CommissionPct, SalesYTD, SalesLastYear, rowguid, ModifiedDate)
-VALUES(3, 1000, 0, 0.1, 1000, 1000, NEWID(), GETDATE())
+    (BusinessEntityID, SalesQuota, Bonus, CommissionPct, SalesYTD, SalesLastYear, rowguid, ModifiedDate)
+  VALUES
+    (3, 1000, 0, 0.1, 1000, 1000, NEWID(), GETDATE())
   PRINT 'Success'
 	COMMIT
 END TRY
@@ -186,6 +225,7 @@ GRANT SELECT ON Sales.SalesPerson TO td
 
 
 
+
 -- SELECT [Status]
 -- FROM Sales.SalesOrderHeader
 -- select * from sales.salesorderdetail
@@ -195,19 +235,3 @@ GRANT SELECT ON Sales.SalesPerson TO td
 -- select * from sales.store
 -- select * from sales.personquotahistory
 -- select * from sales.salesperson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

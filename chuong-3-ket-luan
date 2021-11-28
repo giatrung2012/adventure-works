@@ -1,18 +1,18 @@
-CHƯƠNG 3. KẾT LUẬN
-
-1.Kết quả đã làm được
+1.Kết quả đã làm được:
 - Biết cách backup CSDL AdventureWork
-- 
+- Biết cách tạo View, Stored procedure, Function, Trigger, Transaction, User
 
-2.Hạn chế (chưa làm được)
+2.Hạn chế:
 - 
+-
 
 3.Thuận lợi và khó khăn
-a.Thuận lợi: 
+Thuận lợi: 
+- Có sự chỉ dẫn của giảng viên 
 - Có CSDL sẵn
 - Có file DeTai11.xslx mô tả Diagram, các cột trong từng bảng
 - Có mẫu báo cáo
 
-b.Khó khăn: 
+Khó khăn: 
 - Tên bảng bằng tiếng Anh, mất thời gian tra lại bằng file DeTai11.xslx
 - Hơi bí ý tưởng để nghĩ ra đề bài
