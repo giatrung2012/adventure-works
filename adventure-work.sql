@@ -174,7 +174,7 @@ CREATE LOGIN HuanHoaHong WITH PASSWORD = 'Col@mth1mo1coan'
 GO
 CREATE USER hhh FOR LOGIN HoanHoaHong
 GO
-GRANT SELECT, UPDATE, INSERT, DELETE ON Sales.SalesPerson TO hhh
+GRANT INSERT,UPDATE ON Sales.SalesPerson TO hhh
 
 
 -- Tạo User TranDan cho bảng Sales.Store td có quyền xem dữ liệu
