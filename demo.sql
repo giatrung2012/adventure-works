@@ -83,7 +83,7 @@ GO
 EXEC sp_get_sales_person_id_input_2_table @BusinessEntityID = 282, @SalesOrderID = 1
 
 -- hàm trả về kiểu vô hướng [1]
-CREATE OR ALTER FUNCTION fn_get_sales_person_bonus(@ID INT)
+CREATE FUNCTION fn_get_sales_person_bonus(@ID INT)
 RETURNS INT
 AS
 BEGIN
@@ -95,7 +95,7 @@ GO
 PRINT dbo.fn_get_sales_person_bonus(283)
 
 -- hàm trả về kiểu vô hướng [2]
-CREATE OR ALTER FUNCTION fn_get_sales_customer_account_number(@ID INT)
+CREATE FUNCTION fn_get_sales_customer_account_number(@ID INT)
 RETURNS VARCHAR(10)
 AS
 BEGIN
@@ -107,7 +107,7 @@ GO
 PRINT dbo.fn_get_sales_customer_account_number(3)
 
 -- write code create function return table with table sales.salesorderdetail
-CREATE OR ALTER FUNCTION fn_get_sales_order_detail(@ID INT)
+CREATE OR FUNCTION fn_get_sales_order_detail(@ID INT)
 RETURNS TABLE
 AS
 BEGIN
