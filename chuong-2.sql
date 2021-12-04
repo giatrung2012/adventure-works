@@ -1,12 +1,10 @@
 USE AdventureWorks2019
 GO
 
--- T có làm lại vài yêu cầu kèm đề bài
-
 -- 1.Tạo các View
 -- Yêu cầu 1: (view có điều kiện đơn giản trên 1 bảng)
--- Tính tổng trị giá của những hóa đơn với Mã theo dõi giao hàng(CarrierTrackingNumber) có 3 ký tự đầu là 4BD, thông tin bao gồm: SalesOrderID, CarrierTrackingNumber, SubTotal = SUM(OrderQty * UnitPrice)
-CREATE VIEW v_TotalValueOfInvoicesWithDeliveryTrackingCode
+-- Tạo view tính tổng trị giá của những hóa đơn với Mã theo dõi giao hàng(CarrierTrackingNumber) có 3 ký tự đầu là 4BD, thông tin bao gồm: SalesOrderID, CarrierTrackingNumber, SubTotal = SUM(OrderQty * UnitPrice)
+CREATE VIEW v_TotalValueOfInvoices
 AS
   SELECT SalesOrderID, CarrierTrackingNumber, SUM(OrderQty * UnitPrice) AS SubTotal
   FROM Sales.SalesOrderDetail
@@ -14,12 +12,12 @@ AS
   GROUP BY SalesOrderID, CarrierTrackingNumber
 GO
 SELECT *
-FROM v_TotalValueOfInvoicesWithDeliveryTrackingCode
+FROM v_TotalValueOfInvoices
 
 
 -- Yêu cầu 2: (gợi ý: view có điều kiện đơn giản trên nhiều bảng)
 -- Tạo View hiển thị top 5 tổng doanh số cao nhất từ cột TotalDue mỗi năm và mỗi tháng cho từng khách hàng.
-CREATE VIEW v_CustomerTotals 
+CREATE VIEW vw_CustomerTotals 
 AS
   SELECT TOP 5 C.CustomerID, YEAR(OrderDate) AS OrderYear, MONTH(OrderDate) AS OrderMonth, SUM(TotalDue) AS TotalSales
   FROM Sales.Customer C, Sales.SalesOrderHeader SOH
@@ -27,13 +25,13 @@ AS
   GROUP BY C.CustomerID, YEAR(OrderDate), MONTH(OrderDate)
   ORDER BY TotalSales DESC
 GO
-SELECT CustomerID, OrderYear, OrderMonth, TotalSales
-FROM v_CustomerTotals
+SELECT *
+FROM vw_CustomerTotals
 
 
 -- Yêu cầu 3: (gợi ý: view có điều kiện phức tạp/ truy vấn lồng trên 1 bảng)
--- Liệt kê danh sách các hóa đơn (SalesOrderID) lặp trong từ 01/05/2011 đến 31/10/2011 có tổng tiền > 100000, thông tin gồm SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
-CREATE VIEW v_ListDuplicateInvoices
+-- Tạo View liệt kê danh sách các hóa đơn (SalesOrderID) lặp trong từ 01/05/2011 đến 31/10/2011 có tổng tiền > 100000, thông tin gồm SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
+CREATE VIEW vw_ListDuplicateInvoices
 AS
   SELECT SalesOrderID, OrderDate, SubTotal
   FROM Sales.SalesOrderHeader
@@ -46,26 +44,27 @@ AS
     ) > 1
 GO
 SELECT *
-FROM v_ListDuplicateInvoices
+FROM vw_ListDuplicateInvoices
 
 
 -- Yêu cầu 4: (gợi ý: view có điều kiện phức tạp/ truy vấn lồng trên 1 bảng)
--- Đếm tổng số khách hàng và tổng tiền của những khách hàng thuộc các quốc gia có mã vùng là US (lấy thông tin từ các bảng SalesTerritory, Sales.Customer, Sales.SalesOrderHeader, Sales.SalesOrderDetail). Thông tin bao gồm: tổng số khách hàng (countofCus), tổng tiền (Subtotal) với Subtotal = SUM(OrderQty * UnitPrice).
-CREATE VIEW v_CountCustomer
-AS
-  SELECT COUNT(CustomerID) AS countofCus, SUM(SubTotal) AS TotalAmount
-  FROM (
-    SELECT CustomerID, SubTotal
-    FROM Sales.SalesOrderHeader
-    WHERE (
-      SELECT COUNT(*)
-      FROM Sales.SalesOrderDetail
-      WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
-    ) > 1
-  ) AS t
-GO
-SELECT *
-FROM v_CountCustomer
+-- Làm lại
+
+-- Yêu cầu 5: view cập nhật dữ liệu
+-- Làm lại
+
+-- 2.Xây dựng các Stored procedure
+-- 1 thủ tục không tham số
+-- Thủ tục 1: Làm lại
+
+---1 thủ tục có tham số mặc định
+-- Thủ tục 2: yêu cầu
+
+-- 1 thủ tục có tham số output
+
+-- 2 thủ tục có tham số input
+-- (có thể xây dựng hàm sau đó dùng Thủ tục để gọi hàm)
+
 
 
 -- 3.Xây dựng các Function
