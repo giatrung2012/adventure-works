@@ -63,18 +63,48 @@ GO
 SELECT *
 FROM vw_ListInvoicesHaveLotsOfProducts
 
+
 -- Yêu cầu 5: view cập nhật dữ liệu
--- create view update data cd
-UPDATE vw_ListInvoicesHaveLotsOfProducts
-SET SubTotal = SubTotal + 100
-WHERE SalesOrderID = '53465'
-GO
-SELECT *
+-- Nhận thấy SubTotal trong các hóa đơn khá cao, tặng nhẹ 10% thuế (TaxAmt) cho hóa đơn có SubTotal cao nhất ngay trên View vw_ListInvoicesHaveLotsOfProducts.
+SELECT TOP 1 SalesOrderID, SubTotal, TaxAmt
 FROM vw_ListInvoicesHaveLotsOfProducts
+ORDER BY SubTotal DESC
+GO
+UPDATE vw_ListInvoicesHaveLotsOfProducts
+SET TaxAmt *= 1.1
+WHERE SubTotal = (
+  SELECT MAX(SubTotal)
+  FROM vw_ListInvoicesHaveLotsOfProducts
+)
+GO
+SELECT TOP 1 SalesOrderID, SubTotal, TaxAmt
+FROM vw_ListInvoicesHaveLotsOfProducts
+ORDER BY SubTotal DESC
+
 
 -- 2.Xây dựng các Stored procedure
 -- 1 thủ tục không tham số
--- Thủ tục 1: Làm lại
+-- Thủ tục 1:
+-- Write a procedure to calculate the total amount (TotalDue) of each customer in a
+-- any month of any year (month and year parameters) are entered from the table
+-- key, information includes: CustomerID, SumofTotalDue =Sum(TotalDue)
+-- 1. Tạo stored procedure v_SumOfTotalDue
+CREATE PROC sp_SumOfTotalDue
+  (@CustomerID INT, @Year INT, @Month INT)
+AS
+BEGIN
+	SELECT CustomerID, SUM(TotalDue) AS SumOfTotalDue
+	FROM Sales.SalesOrderHeader
+	WHERE CustomerID = @CustomerID
+		AND YEAR(OrderDate) = @Year
+		AND MONTH(OrderDate) = @Month
+	GROUP BY CustomerID
+END
+GO
+EXEC sp_SumOfTotalDue 29825, 2011, 5
+
+
+
 
 ---1 thủ tục có tham số mặc định
 -- Thủ tục 2: yêu cầu
@@ -86,7 +116,28 @@ FROM vw_ListInvoicesHaveLotsOfProducts
 
 
 
+
 -- 3.Xây dựng các Function
+-- hàm trả về kiểu vô hướng [1]
+-- Hàm 
+-- CREATE or alter FUNCTION dbo.fn_GetAccountingEndDate()
+-- RETURNS DATETIME 
+-- AS 
+-- BEGIN
+--   RETURN DATEADD(MILLISECOND, -2, '2012-12-21')
+-- END
+-- GO
+-- PRINT dbo.fn_GetAccountingEndDate()
+
+-- SELECT CONVERT (time, SYSDATETIME()) ,CONVERT (time, SYSDATETIMEOFFSET())
+-- ,CONVERT (time, SYSUTCDATETIME())
+-- ,CONVERT (time, CURRENT_TIMESTAMP)
+-- ,CONVERT (time, GETDATE())
+-- ,CONVERT (time, GETUTCDATE());
+
+
+-- print convert(datetime, SYSDATETIME())
+
 -- hàm trả về bảng [1]
 -- Viết hàm sumofOrder với hai tham số @Month và @Year trả về danh sách các hóa đơn (SalesOrderID) lặp trong tháng và năm được truyền vào từ 2 tham số @Month và @Year, có tổng tiền > 100000, thông tin gồm: SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
 CREATE FUNCTION sumofOrder(@Month INT, @Year INT)

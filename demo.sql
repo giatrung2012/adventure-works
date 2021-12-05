@@ -1,3 +1,6 @@
+USE AdventureWorks2019
+GO
+
 -- View don gian (1 bang)
 CREATE VIEW v_SalesOrderHeader
 AS
@@ -21,7 +24,7 @@ FROM v_BusinessEntity
 -- create view with complex conditions/nested queries across multiple tables
 DROP VIEW v_4
 GO
-CREATE VIEW v_4
+CREATE VIEW v_test
 AS
   SELECT *
   FROM Sales.SalesOrderHeader
@@ -33,14 +36,14 @@ AS
   ) > 70
 GO
 SELECT *
-FROM v_4
+FROM v_test
 
 -- 5
-UPDATE v_4
+UPDATE v_test
 SET SubTotal = SubTotal + 100
 GO
 SELECT *
-FROM v_4
+FROM v_test
 
 -- 1 thủ tục không tham số
 CREATE PROCEDURE sp_get_sales_person_id
