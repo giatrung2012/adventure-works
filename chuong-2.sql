@@ -48,10 +48,29 @@ FROM vw_ListDuplicateInvoices
 
 
 -- Yêu cầu 4: (gợi ý: view có điều kiện phức tạp/ truy vấn lồng trên 1 bảng)
--- Làm lại
+-- Tạo View hiển thị danh sách các hóa đơn có SubTotal (Tổng phụ bán hàng) > 3500 và có hơn 70 loại sản phẩm.
+CREATE VIEW vw_ListInvoicesHaveLotsOfProducts
+AS
+  SELECT *
+  FROM Sales.SalesOrderHeader
+  WHERE SubTotal > 3500
+    AND (
+      SELECT COUNT(*)
+      FROM Sales.SalesOrderDetail
+      WHERE SalesOrderID = Sales.SalesOrderHeader.SalesOrderID
+    ) > 70
+GO
+SELECT *
+FROM vw_ListInvoicesHaveLotsOfProducts
 
 -- Yêu cầu 5: view cập nhật dữ liệu
--- Làm lại
+-- create view update data cd
+UPDATE vw_ListInvoicesHaveLotsOfProducts
+SET SubTotal = SubTotal + 100
+WHERE SalesOrderID = '53465'
+GO
+SELECT *
+FROM vw_ListInvoicesHaveLotsOfProducts
 
 -- 2.Xây dựng các Stored procedure
 -- 1 thủ tục không tham số
@@ -208,19 +227,19 @@ END CATCH
 
 -- 5.Tạo các user
 -- Tạo User HuanHoaHong cho bảng Sales.SalePerson hhh có quyền Thêm, chỉnh sửa dữ liệu
-CREATE LOGIN HuanHoaHong WITH PASSWORD = 'Col@mth1mo1coan'
+CREATE LOGIN Karik WITH PASSWORD = 'forget2C@n'
 GO
-CREATE USER hhh FOR LOGIN HoanHoaHong
+CREATE USER k FOR LOGIN HoanHoaHong
 GO
-GRANT INSERT,UPDATE ON Sales.SalesPerson TO hhh
+GRANT INSERT,UPDATE ON Sales.SalesPerson TO k
 
 
 -- Tạo User TranDan cho bảng Sales.Store td có quyền xem dữ liệu
-CREATE LOGIN TranDan WITH PASSWORD = 'Cov@nto1c@o'
+CREATE LOGIN Wowy WITH PASSWORD = 'Mercedesm@ux@nh'
 GO
-CREATE USER td FOR LOGIN TranDan
+CREATE USER w FOR LOGIN TranDan
 GO
-GRANT SELECT ON Sales.SalesPerson TO td
+GRANT SELECT ON Sales.SalesPerson TO w
 
 
 
