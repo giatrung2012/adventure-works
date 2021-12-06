@@ -1,5 +1,5 @@
 # Code để ở file chuong-2.sql
-# Toàn bộ nộp file pdf
+# Toàn bộ nộp file docx
 # HƯỚNG DẪN ĐỊNH DẠNG
 
 1.Định dạng trang: lề trái 3cm, phải 2cm, trên 2.5cm, dưới 2.5cm

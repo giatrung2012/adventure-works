@@ -83,12 +83,49 @@ ORDER BY SubTotal DESC
 
 
 -- 2.Xây dựng các Stored procedure
--- 1 thủ tục không tham số
--- Thủ tục 1:
--- Write a procedure to calculate the total amount (TotalDue) of each customer in a
--- any month of any year (month and year parameters) are entered from the table
--- key, information includes: CustomerID, SumofTotalDue =Sum(TotalDue)
--- 1. Tạo stored procedure v_SumOfTotalDue
+-- Yêu cầu 1: Viết thủ tục lấy ra tiền thưởng cao nhất của trong bảng Sales.SalesPerson.
+CREATE PROC sp_GetMaxBonus
+AS
+  SELECT MAX(Bonus) AS MaxBonus
+  FROM Sales.SalesPerson
+GO
+EXEC sp_GetMaxBonus
+
+
+---1 thủ tục có tham số mặc định
+-- Yêu cầu 2: Viết thủ tục có tham số mặc định là @ID = 274 lấy ra tổng số lượng hạn ngạch bán hàng (TotalSalesQuota) của ID đó.
+CREATE PROC sp_GetTotalSalesQuota
+  @ID INT = 274
+AS
+  SELECT BusinessEntityID, SUM(SalesQuota) AS TotalSalesQuota
+  FROM Sales.SalesPersonQuotaHistory
+  WHERE BusinessEntityID = @ID
+  GROUP BY BusinessEntityID
+GO
+EXEC sp_GetTotalSalesQuota
+
+
+-- 1 thủ tục có tham số output
+-- Yêu cầu 3: Viết thủ tục có tham số output là @Count, khi người dùng truyền vào mã quốc gia thì hiển thị thông tin và đếm số lượng lãnh thổ thuộc quốc gia đó.
+CREATE PROC sp_CountTerritory
+@Code VARCHAR(2),
+@TerritoryCount INT OUTPUT
+AS
+BEGIN
+SELECT *
+FROM Sales.SalesTerritory
+WHERE CountryRegionCode = @Code
+
+SET @TerritoryCount = @@ROWCOUNT
+END
+GO
+DECLARE @Count INT
+EXEC sp_CountTerritory 'AU', @Count OUTPUT
+SELECT @Count AS NumberOfTerritory
+
+
+-- 2 thủ tục có tham số input (4, 5)
+-- Yêu cầu 4: Viết một thủ tục tính tổng tiền thu (TotalDue) của mỗi khách hàng trong một tháng bất kỳ của một năm bất kỳ (tham số tháng và năm) được nhập từ bàn phím, thông tin gồm: CustomerID, SumofTotalDue = Sum(TotalDue)
 CREATE PROC sp_SumOfTotalDue
   (@CustomerID INT, @Year INT, @Month INT)
 AS
@@ -103,40 +140,42 @@ END
 GO
 EXEC sp_SumOfTotalDue 29825, 2011, 5
 
+-- Yêu cầu 5: 
 
 
 
----1 thủ tục có tham số mặc định
--- Thủ tục 2: yêu cầu
-
--- 1 thủ tục có tham số output
-
--- 2 thủ tục có tham số input
--- (có thể xây dựng hàm sau đó dùng Thủ tục để gọi hàm)
 
 
 
 
 -- 3.Xây dựng các Function
 -- hàm trả về kiểu vô hướng [1]
--- Hàm 
--- CREATE or alter FUNCTION dbo.fn_GetAccountingEndDate()
--- RETURNS DATETIME 
--- AS 
--- BEGIN
---   RETURN DATEADD(MILLISECOND, -2, '2012-12-21')
--- END
--- GO
--- PRINT dbo.fn_GetAccountingEndDate()
+-- Yêu cầu 1: Viết hàm trả về biểu diễn văn bản của cột Status trong bảng SalesOrderHeader. 
+CREATE FUNCTION fn_GetSalesOrderStatusText(@Status TINYINT)
+RETURNS VARCHAR(15) 
+AS 
+BEGIN
+  DECLARE @Result VARCHAR(15)
+  SET @Result = (
+    CASE @Status
+      WHEN 1 THEN 'In process'
+      WHEN 2 THEN 'Approved'
+      WHEN 3 THEN 'Backordered'
+      WHEN 4 THEN 'Rejected'
+      WHEN 5 THEN 'Shipped'
+      WHEN 6 THEN 'Cancelled'
+      ELSE '** Invalid **'
+    END
+  )
+  RETURN @Result
+END
+GO
+PRINT 'SalesOrderStatus: ' + dbo.fn_GetSalesOrderStatusText(5)
 
--- SELECT CONVERT (time, SYSDATETIME()) ,CONVERT (time, SYSDATETIMEOFFSET())
--- ,CONVERT (time, SYSUTCDATETIME())
--- ,CONVERT (time, CURRENT_TIMESTAMP)
--- ,CONVERT (time, GETDATE())
--- ,CONVERT (time, GETUTCDATE());
 
 
--- print convert(datetime, SYSDATETIME())
+
+
 
 -- hàm trả về bảng [1]
 -- Viết hàm sumofOrder với hai tham số @Month và @Year trả về danh sách các hóa đơn (SalesOrderID) lặp trong tháng và năm được truyền vào từ 2 tham số @Month và @Year, có tổng tiền > 100000, thông tin gồm: SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
@@ -291,16 +330,3 @@ GO
 CREATE USER w FOR LOGIN TranDan
 GO
 GRANT SELECT ON Sales.SalesPerson TO w
-
-
-
-
--- SELECT [Status]
--- FROM Sales.SalesOrderHeader
--- select * from sales.salesorderdetail
--- select * from sales.customer
--- select * from sales.salesterritory
--- select * from sales.salesterritoryhistory
--- select * from sales.store
--- select * from sales.personquotahistory
--- select * from sales.salesperson
