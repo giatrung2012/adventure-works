@@ -140,12 +140,21 @@ END
 GO
 EXEC sp_SumOfTotalDue 29825, 2011, 5
 
--- Yêu cầu 5: 
-
-
-
-
-
+-- Yêu cầu 5: Tạo thủ tục Đếm tổng số khách hàng và tổng tiền của những khách hàng khi người dùng nhập mã quốc gia (lấy thông tin từ các bảng SalesTerritory, Sales.Customer, Sales.SalesOrderHeader, Sales.SalesOrderDetail).Thông tin bao gồm TerritoryID, tổng số khách hàng (countofCus), tổng tiền (Subtotal) với Subtotal = SUM(OrderQty*UnitPrice)
+CREATE PROC sp_CountCustomer
+@Code VARCHAR(2)
+AS
+BEGIN
+  SELECT ST.TerritoryID, COUNT(C.CustomerID) AS NumberOfCustomer, SUM(Subtotal) AS SumOfSubtotal
+  FROM Sales.Customer C, Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD, Sales.SalesTerritory ST
+  WHERE CountryRegionCode = @Code
+    AND C.CustomerID = SOH.CustomerID
+    AND SOH.SalesOrderID = SOD.SalesOrderID
+    AND SOH.TerritoryID = ST.TerritoryID
+  GROUP BY ST.TerritoryID
+END
+GO
+EXEC sp_CountCustomer 'AU'
 
 
 -- 3.Xây dựng các Function
@@ -173,45 +182,93 @@ GO
 PRINT 'SalesOrderStatus: ' + dbo.fn_GetSalesOrderStatusText(5)
 
 
+-- Viết hàm tên Discount_func tính số tiền giảm trên các hóa đơn
+-- (SalesOrderID), thông tin gồm SalesOrderID, [SubTotal], Discount, trong đó,
+-- Discount được tính như sau:
+-- [SubTotal]<1000 thì Discount=0
+-- 1000>=[SubTotal]<5000 thì Discount = 5%[SubTotal]
+-- case
+-- when SubTotal<1000
+-- then 0
+-- when
+-- SubTotal>=1000 and
+-- SubTotal<5000 then
+-- [SubTotal]*0.05
+-- when
+-- SubTotal>=5000 and
+-- SubTotal<10000
+-- then
+-- [SubTotal]*0.1
+-- else SubTotal*0.15
+-- end
 
+-- 5000>=[SubTotal]<10000 thì Discount =
+-- 10%[SubTotal]
+-- [SubTotal>=10000 thì Discount = 15%
+-- [SubTotal]
+CREATE or alter FUNCTION dbo.fn_GetDiscountAmount(@SalesOrderID INT)
+RETURNS MONEY
+AS
+BEGIN
+  DECLARE @SubTotal MONEY
+  DECLARE @Discount MONEY
 
+  SELECT @SubTotal = SubTotal
+  FROM Sales.SalesOrderHeader
+  WHERE SalesOrderID = @SalesOrderID
+  
+  SET @Discount = (
+    CASE
+      WHEN @SubTotal < 1000 THEN 0
+      WHEN @SubTotal >= 1000 AND @SubTotal < 5000 THEN @SubTotal * 0.05
+      WHEN @SubTotal >= 5000 AND @SubTotal < 100000 THEN @SubTotal * 0.1
+      WHEN @SubTotal >= 100000 THEN @SubTotal * 0.15
+    END
+  )
+  RETURN @Discount
+END
+GO
+PRINT 'DiscountAmount: ' + CONVERT(VARCHAR(20), dbo.fn_GetDiscountAmount(43659))
 
 
 -- hàm trả về bảng [1]
--- Viết hàm sumofOrder với hai tham số @Month và @Year trả về danh sách các hóa đơn (SalesOrderID) lặp trong tháng và năm được truyền vào từ 2 tham số @Month và @Year, có tổng tiền > 100000, thông tin gồm: SalesOrderID, Orderdate, SubTotal, trong đó SubTotal = SUM(OrderQty * UnitPrice).
-CREATE FUNCTION sumofOrder(@Month INT, @Year INT)
+-- Write a function with two parameters @Month and @Year that returns a list of invoices (SalesOrderID) repeated in the month and year passed from 2 parameters @Month and @Year, with total amount > 100000, information includes: SalesOrderID , Orderdate, SubTotal, where SubTotal
+CREATE or alter FUNCTION dbo.fn_GetInvoiceList
+  (@Month INT, @Year INT)
 RETURNS TABLE
 AS
 RETURN (
-  SELECT SOH.SalesOrderID, OrderDate, SUM(OrderQty * UnitPrice) AS SubTotal
-  FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD
-  WHERE SOH.SalesOrderID = SOD.SalesOrderID 
-    AND MONTH(OrderDate) = @Month 
-    AND YEAR(OrderDate) = @Year AND SubTotal > 100000 
-  GROUP BY SOH.SalesOrderID, OrderDate
+  SELECT SalesOrderID, OrderDate, SubTotal
+  FROM Sales.SalesOrderHeader
+  WHERE YEAR(OrderDate) = @Year
+    AND MONTH(OrderDate) = @Month
+  GROUP BY SalesOrderID, OrderDate, SubTotal
 )
 GO
-SELECT *
-FROM sumofOrder(10, 2011)
+SELECT * FROM fn_GetInvoiceList(5, 2011)
 
 
 -- hàm trả về bảng [2]
--- Viết hàm TotalOfEmp với tham số @MonthOrder, @YearOrder để tính tổng doanh thu của các nhân viên bán hàng (SalePerson) trong tháng và năm được truyền và 2 tham số, thông tin gồm [SalesPersonID], Total, với Total = SUM(SubTotal)
-CREATE FUNCTION TotalOfEmp(@MonthOrder INT, @YearOrder INT)
+-- Write a function with parameters @MonthOrder, @YearOrder to calculate the total sales of salespeople (SalePerson) in the month and year passed and 2 parameters, information includes [SalesPersonID], Total, with Total = SUM(SubTotal )
+CREATE or alter FUNCTION dbo.fn_GetSalesPersonTotal
+  (@MonthOrder INT, @YearOrder INT)
 RETURNS TABLE
 AS
 RETURN (
-  SELECT SOH.SalesPersonID, SUM(SOD.OrderQty * SOD.UnitPrice) AS Total 
-  FROM Sales.SalesOrderHeader SOH, Sales.SalesOrderDetail SOD 
-  WHERE SOH.SalesOrderID = SOD.SalesOrderID 
+  SELECT SalesPersonID, SUM(SubTotal) AS Total
+  FROM Sales.SalesOrderHeader
+  WHERE YEAR(OrderDate) = @YearOrder
     AND MONTH(OrderDate) = @MonthOrder
-    AND YEAR(OrderDate) = @YearOrder
-    AND SOH.SalesPersonID IS NOT NULL
-  GROUP BY SOH.SalesPersonID
+    AND SalesPersonID IS NOT NULL
+  GROUP BY SalesPersonID
 )
 GO
-SELECT *
-FROM TotalOfEmp(7, 2011)
+SELECT * FROM fn_GetSalesPersonTotal(7, 2011)
+
+
+-- ham tra ve bang tu dinh nghia
+--
+
 
 
 -- 4.Xây dựng các Trigger và Transaction
