@@ -268,7 +268,25 @@ SELECT * FROM fn_GetSalesPersonTotal(7, 2011)
 
 -- ham tra ve bang tu dinh nghia
 --
+drop function fn_ListTop5Customer
+CREATE or alter FUNCTION dbo.fn_ListTop5Customer()
+RETURNS @Customer TABLE (
+  CustomerID INT,
+  PersonID INT,
+  StoreID INT,
+  TerritoryID INT,
+  AccountNumber VARCHAR(15)
+)
+AS
+BEGIN
+  INSERT INTO @Customer
+  SELECT TOP 5 CustomerID, PersonID, StoreID, TerritoryID, AccountNumber
+  FROM Sales.Customer
 
+  RETURN
+END
+GO
+SELECT * FROM fn_ListTop5Customer()
 
 
 -- 4.Xây dựng các Trigger và Transaction
@@ -289,10 +307,9 @@ BEGIN
   END
 END
 
-
 -- 1 Trigger Update, …
 -- Tạo trigger khi cập nhật bảng Sales.SalesTerritory thì cập nhật lại bảng Sales.SalesTerritoryHistory với TerritoryID mới và StartDate là ngày hiện tại.
-CREATE TRIGGER t_Update_SalesTerritory
+CREATE TRIGGER tg_UpdateSTH
 ON Sales.SalesTerritory
 FOR UPDATE
 AS
@@ -313,7 +330,7 @@ END
 
 -- 1 Trigger Delete, …
 -- Viết trigger dùng để xóa hóa đơn trong bảng Sales.SalesOrderHeader, đồng thời xóa các bản ghi của hóa đơn đó trong Sales.SalesOrderDetail. Nếu không tồn tại hóa đơn trong Sales.SalesOrderHeader, thì không được phép xóa hóa đơn đó trong Sales.SalesOrderDetail và in thông báo lỗi.
-CREATE TRIGGER sales.t_DeleteInvoice
+CREATE TRIGGER tg_DeleteInvoice
 ON Sales.SalesOrderHeader
 FOR DELETE
 AS
@@ -374,16 +391,16 @@ END CATCH
 
 -- 5.Tạo các user
 -- Tạo User HuanHoaHong cho bảng Sales.SalePerson hhh có quyền Thêm, chỉnh sửa dữ liệu
-CREATE LOGIN Karik WITH PASSWORD = 'forget2C@n'
+CREATE LOGIN Student1 WITH PASSWORD = 'Thisis@p@ssword'
 GO
-CREATE USER k FOR LOGIN HoanHoaHong
+CREATE USER s1 FOR LOGIN Student1
 GO
-GRANT INSERT,UPDATE ON Sales.SalesPerson TO k
+GRANT INSERT,UPDATE ON Sales.SalesPerson TO s1
 
 
 -- Tạo User TranDan cho bảng Sales.Store td có quyền xem dữ liệu
-CREATE LOGIN Wowy WITH PASSWORD = 'Mercedesm@ux@nh'
+CREATE LOGIN Student2 WITH PASSWORD = 'Thisisalso@p@ssword'
 GO
-CREATE USER w FOR LOGIN TranDan
+CREATE USER s2 FOR LOGIN Student2 
 GO
-GRANT SELECT ON Sales.SalesPerson TO w
+GRANT SELECT ON Sales.Customer TO s2 
